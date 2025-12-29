@@ -165,7 +165,7 @@ def generate_drum_pattern(bpm: float, duration: float, pattern: str = "four_on_f
         pattern: "four_on_floor", "breakbeat", "halftime"
     """
     beat_duration = 60.0 / bpm
-    sixteenth = beat_duration / 4
+
     total_samples = int(SAMPLE_RATE * duration)
     audio = np.zeros(total_samples, dtype=np.float32)
 

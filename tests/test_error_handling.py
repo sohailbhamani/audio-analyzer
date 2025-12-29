@@ -4,10 +4,8 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 
 import numpy as np
-import pytest
 import soundfile as sf
 
 
@@ -29,7 +27,7 @@ class TestInvalidInputs:
     def test_empty_file(self, temp_audio_path):
         """Verify graceful handling of empty file."""
         # Create an empty file
-        with open(temp_audio_path, "w") as f:
+        with open(temp_audio_path, "w"):
             pass
 
         result = run_analyzer(temp_audio_path)

@@ -42,7 +42,6 @@ class TestKeyDetectionMajorKeys:
         # Exact match or adjacent on Camelot wheel (compatible keys)
         expected_number = int(camelot[:-1])
         detected_number = int(detected_key[:-1])
-        detected_mode = detected_key[-1]
 
         # Check if same key or relative minor
         exact_match = detected_key == camelot
