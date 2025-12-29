@@ -103,7 +103,7 @@ def analyze(audio_path: Path):
                     bpm = bpm / 2
                 librosa_tempos.append(bpm)
 
-        librosa_bpm = round(np.median(librosa_tempos)) if librosa_tempos else 120
+        _librosa_bpm = round(np.median(librosa_tempos)) if librosa_tempos else 120  # noqa: F841
 
         # Essentia BPM (RhythmExtractor2013 - best for electronic)
         rhythm_extractor = es.RhythmExtractor2013(method="multifeature")
