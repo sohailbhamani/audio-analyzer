@@ -177,7 +177,7 @@ def analyze(audio_path: Path):
             vocal_mask = (freqs >= vocal_low) & (freqs <= vocal_high)
             low_mask = freqs < vocal_low
 
-            vocal_ratios = []
+            vocal_ratios: list[float] = []
 
             for i in range(0, len(y) - frame_size, hop_size):
                 frame = y[i : i + frame_size]
