@@ -52,8 +52,13 @@ audio-analyzer analyze path/to/song.mp3
 ## Development
 
 ```bash
-# Run tests
-pytest
+# Run tests (Fast/Smoke suite)
+# This is what runs in GitHub Actions CI
+pytest -m "not slow"
+
+# Run full test suite (Slow, includes synthetic audio generation)
+# Run this locally before major releases
+pytest -m "slow or not slow"
 
 # Run linter
 ruff check .
