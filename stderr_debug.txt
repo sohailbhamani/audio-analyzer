@@ -1,9 +1,0 @@
-[   INFO   ] MusicExtractorSVM: no classifier models were configured by default
-Audio loaded.
-Running Librosa BPM...
-Librosa BPM: 120
-Running Essentia BPM...
-Essentia BPM done.
-Running Key Detection...
-Key Detection done.
-Analysis failed: Object of type bool is not JSON serializable

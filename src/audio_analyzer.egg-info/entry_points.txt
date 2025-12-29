@@ -1,2 +1,0 @@
-[console_scripts]
-audio-analyzer = audio_analyzer.main:cli
