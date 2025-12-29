@@ -14,9 +14,10 @@ def run_analyzer(file_path: str) -> subprocess.CompletedProcess:
     return result
 
 
-class TestKeyDetectionMajorKeys:
-    """Test key detection for major keys using chord progressions."""
+class TestKeyDetection:
+    """Test key detection utilizing chord progressions."""
 
+    @pytest.mark.slow
     @pytest.mark.parametrize(
         "camelot, description",
         [
@@ -50,10 +51,11 @@ class TestKeyDetectionMajorKeys:
 
         assert exact_match or relative_minor or adjacent, f"Expected {camelot} ({description}), got {detected_key}"
 
+    def test_key_smoke(self, generated_audio_file):
+        """Smoke test for key detection (fast)."""
+        self.test_major_key_detection(generated_audio_file, "8B", "C major")
 
-class TestKeyDetectionMinorKeys:
-    """Test key detection for minor keys using chord progressions."""
-
+    @pytest.mark.slow
     @pytest.mark.parametrize(
         "camelot, description",
         [

@@ -17,6 +17,7 @@ def run_analyzer(file_path: str) -> subprocess.CompletedProcess:
 class TestBPMDetectionWithDrums:
     """Test BPM detection accuracy using synthetic drum patterns."""
 
+    @pytest.mark.slow
     @pytest.mark.parametrize(
         "bpm",
         [
@@ -45,6 +46,12 @@ class TestBPMDetectionWithDrums:
 
         assert bpm_match or octave_match, f"Expected ~{bpm} BPM, got {detected_bpm}"
 
+    def test_bpm_smoke(self, generated_drum_file):
+        """Smoke test for BPM detection (fast)."""
+        # Run a single case to ensure pipeline works
+        self.test_bpm_detection_four_on_floor(generated_drum_file, 120)
+
+    @pytest.mark.slow
     @pytest.mark.parametrize(
         "bpm, pattern",
         [
@@ -86,6 +93,7 @@ class TestBPMDetectionWithDrums:
 class TestBPMWithClickTrack:
     """Test BPM detection using chord + click track (original method)."""
 
+    @pytest.mark.slow
     @pytest.mark.parametrize(
         "bpm",
         [100, 120, 128, 140],
