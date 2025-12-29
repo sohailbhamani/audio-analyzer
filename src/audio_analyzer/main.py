@@ -2,7 +2,6 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 import numpy as np
@@ -12,7 +11,7 @@ logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")
 logger = logging.getLogger("audio-analyzer")
 
 
-def pitch_to_camelot(pitch_class: int, mode: int) -> Optional[str]:
+def pitch_to_camelot(pitch_class: int, mode: int) -> str | None:
     """Convert pitch class (0-11) and mode (0=minor, 1=major) to Camelot notation."""
     # Pitch class 0=C, 1=C#, etc.
     # Mode 0=Minor, 1=Major
@@ -66,12 +65,12 @@ def cli():
 def analyze(audio_path: Path):
     """Analyze audio file and output JSON results."""
     try:
+        # Suppress warnings
+        import warnings
+
         import essentia.standard as es
         import librosa
         from scipy.fft import rfft, rfftfreq
-
-        # Suppress warnings
-        import warnings
 
         warnings.filterwarnings("ignore")
 

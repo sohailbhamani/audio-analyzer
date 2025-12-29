@@ -1,8 +1,9 @@
-import pytest
-import numpy as np
-import soundfile as sf
-import tempfile
 import os
+import tempfile
+
+import numpy as np
+import pytest
+import soundfile as sf
 
 SAMPLE_RATE = 44100
 
@@ -23,19 +24,12 @@ NOTES = {
 }
 
 CAMELOT_TO_KEY = {
-    "8B": ("C", "major"),
-    "5A": ("C", "minor"),
-    "3B": ("F#", "major"),
-    "2B": ("F#", "major"),  # 3B is F# Major? Check circle.
     # Camelot Wheel:
-    # 8B = C Major
-    # 3B = F# Major (Bottom of wheel) - wait.
-    # 1B=B, 2B=F#, 3B=Db(C#).
-    # Let's check standards.
-    # 1B (B), 2B (F#), 3B (Db/C#), 4B (Ab/G#), 5B (Eb/D#), 6B (Bb/A#), 7B (F), 8B (C), 9B (G), 10B (D), 11B (A), 12B (E)
+    # 1B=B, 2B=F#, 3B=Db(C#), 4B=Ab(G#), 5B=Eb(D#), 6B=Bb(A#), 7B=F, 8B=C, 9B=G, 10B=D, 11B=A, 12B=E
     "8B": ("C", "major"),
-    "2B": ("F#", "major"),
     "5A": ("C", "minor"),
+    "2B": ("F#", "major"),
+    "3B": ("C#", "major"),
 }
 
 
@@ -67,9 +61,7 @@ def add_click_track(audio, bpm):
 
     click_duration = 0.05
     click_freq = 1000
-    click_t = np.linspace(
-        0, click_duration, int(SAMPLE_RATE * click_duration), endpoint=False
-    )
+    click_t = np.linspace(0, click_duration, int(SAMPLE_RATE * click_duration), endpoint=False)
     click_wave = 0.8 * np.sin(2 * np.pi * click_freq * click_t) * np.exp(-10 * click_t)
 
     beats = np.arange(0, duration, beat_interval)

@@ -1,8 +1,8 @@
-import subprocess
 import json
-import pytest
+import subprocess
 import sys
-from pathlib import Path
+
+import pytest
 
 
 def run_analyzer(file_path):
