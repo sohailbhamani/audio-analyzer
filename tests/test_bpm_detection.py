@@ -78,6 +78,7 @@ class TestBPMDetectionWithDrums:
 
         assert bpm_match or octave_match, f"Expected ~{bpm} BPM ({pattern}), got {detected_bpm}"
 
+    @pytest.mark.slow
     def test_bpm_confidence_reasonable(self, generated_drum_file):
         """Verify BPM confidence is returned and reasonable."""
         path = generated_drum_file(bpm=120, duration=15.0, pattern="four_on_floor")

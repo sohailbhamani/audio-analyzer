@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 import numpy as np
+import pytest
 import soundfile as sf
 
 
@@ -51,6 +52,7 @@ class TestInvalidInputs:
         assert result.returncode != 0, "Should fail for text file"
 
 
+@pytest.mark.slow
 class TestEdgeCases:
     """Test edge cases in audio analysis."""
 
@@ -128,6 +130,7 @@ class TestEdgeCases:
         assert "bpm" in data
 
 
+@pytest.mark.slow
 class TestOutputFormat:
     """Test JSON output format and required fields."""
 

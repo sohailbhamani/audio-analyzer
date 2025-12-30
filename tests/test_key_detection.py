@@ -100,6 +100,7 @@ class TestKeyConfidence:
         assert "key_confidence" in data
         assert isinstance(data["key_confidence"], (int, float))
 
+    @pytest.mark.slow
     @pytest.mark.parametrize(
         "camelot",
         ["8B", "8A", "5A", "5B"],
