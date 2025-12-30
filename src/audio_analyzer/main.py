@@ -97,10 +97,11 @@ def analyze(audio_path: Path):
                 bpm = float(tempo)
 
                 # Fix octave errors (normalize to 80-160 - typical DJ tempo range)
-                while bpm < 80:
-                    bpm = bpm * 2
-                while bpm > 160:
-                    bpm = bpm / 2
+                if bpm > 0:
+                    while bpm < 80:
+                        bpm = bpm * 2
+                    while bpm > 160:
+                        bpm = bpm / 2
                 librosa_tempos.append(bpm)
 
         _librosa_bpm = round(np.median(librosa_tempos)) if librosa_tempos else 120  # noqa: F841
@@ -111,10 +112,11 @@ def analyze(audio_path: Path):
         essentia_bpm = float(essentia_bpm)
 
         # Apply octave correction to Essentia
-        while essentia_bpm < 80:
-            essentia_bpm = essentia_bpm * 2
-        while essentia_bpm > 160:
-            essentia_bpm = essentia_bpm / 2
+        if essentia_bpm > 0:
+            while essentia_bpm < 80:
+                essentia_bpm = essentia_bpm * 2
+            while essentia_bpm > 160:
+                essentia_bpm = essentia_bpm / 2
         essentia_bpm = round(essentia_bpm)
 
         # Prefer Essentia
