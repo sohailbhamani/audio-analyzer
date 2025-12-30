@@ -12,6 +12,7 @@ def run_analyzer(file_path):
     return result
 
 
+@pytest.mark.slow
 def test_analyze_bpm_accuracy(generated_audio_file):
     """Verify BPM detection accuracy."""
     # Test 120 BPM
@@ -29,6 +30,7 @@ def test_analyze_bpm_accuracy(generated_audio_file):
     assert abs(data["bpm"] - 128) < 1.0, f"Expected 128 BPM, got {data['bpm']}"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "camelot, expected_key",
     [
