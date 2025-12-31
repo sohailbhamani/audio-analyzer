@@ -1,7 +1,9 @@
 """Parameterized key detection tests using chord progressions."""
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from audio_analyzer.main import analyze_audio
 
 
