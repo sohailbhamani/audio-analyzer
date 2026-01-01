@@ -168,7 +168,7 @@ def analyze(audio_path: Path):
             try:
                 extractor = es.KeyExtractor()
                 key_name, scale, strength = extractor(y)
-                pitch = KEY_MAP.get(key_name, 0)
+                pitch = key_mapping.get(key_name, 0)
                 mode = 1 if scale == "major" else 0
                 camelot = pitch_to_camelot(pitch, mode) or "8A"
                 key_results.append({"key": camelot, "confidence": float(strength)})
