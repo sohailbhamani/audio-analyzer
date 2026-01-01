@@ -2,6 +2,45 @@
 
 
 
+## v0.1.0 (2026-01-01)
+
+### Chore
+
+* chore: trigger ci ([`3399a73`](https://github.com/sohailbhamani/audio-analyzer/commit/3399a73cdec58e8187cf9a2727ae26048c9dc4f8))
+
+### Feature
+
+* feat(analysis): implement multi-profile voting (edma, bgate, temperley) ([`9eb78b3`](https://github.com/sohailbhamani/audio-analyzer/commit/9eb78b38e54437c7946a0f022a0516aeb4fcd9e6))
+
+### Fix
+
+* fix(lint): cleanup types and unused imports ([`5227a75`](https://github.com/sohailbhamani/audio-analyzer/commit/5227a751789981fb9d34c21a08844462571db580))
+
+* fix(analysis): resolve linting and type errors in multi-profile logic ([`8b4a23d`](https://github.com/sohailbhamani/audio-analyzer/commit/8b4a23d929b2de006816309a98bfddcdaeb12fbf))
+
+* fix(lint): fix undefined variable key_mapping in fallback ([`bf0eb73`](https://github.com/sohailbhamani/audio-analyzer/commit/bf0eb7345e9b7a7f0467afa34abd68667b3ecbf4))
+
+* fix(lint): rename function-local KEY_MAP to lowercase to satisfy N806 ([`d0a3cb7`](https://github.com/sohailbhamani/audio-analyzer/commit/d0a3cb7cabb9284a171d0f889d7e507c344420f8))
+
+### Unknown
+
+* Merge pull request #10 from sohailbhamani/fix/analysis-quality
+
+fix(analysis): resolve linting and type errors ([`cac8bf0`](https://github.com/sohailbhamani/audio-analyzer/commit/cac8bf060c57ac2c4ae3a7b5d8dbb5630bf0327f))
+
+* Revert &#34;fix(lint): rename function-local KEY_MAP to lowercase to satisfy N806&#34;
+
+This reverts commit d0a3cb7cabb9284a171d0f889d7e507c344420f8. ([`734ba91`](https://github.com/sohailbhamani/audio-analyzer/commit/734ba917f8803b2c63ef1df38331791262ef4e12))
+
+* Revert &#34;fix(lint): fix undefined variable key_mapping in fallback&#34;
+
+This reverts commit bf0eb7345e9b7a7f0467afa34abd68667b3ecbf4. ([`7ddbb6e`](https://github.com/sohailbhamani/audio-analyzer/commit/7ddbb6ec8dfb85e5d31b4239132b5fd5b4f79edb))
+
+* Merge pull request #9 from sohailbhamani/feature/multi-profile-analysis
+
+feat(analysis): multi-profile voting ([`3691b49`](https://github.com/sohailbhamani/audio-analyzer/commit/3691b49827ae5e344b59d461ec91303d68778209))
+
+
 ## v0.0.1 (2025-12-30)
 
 ### Chore
