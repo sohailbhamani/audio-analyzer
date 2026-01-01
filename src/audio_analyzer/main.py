@@ -126,7 +126,7 @@ def analyze(audio_path: Path):
         # 2. Key Detection - Multi-profile Voting ------------------------------
         from collections import Counter
 
-        key_mapping = {
+        KEY_MAP = {
             "C": 0,
             "C#": 1,
             "D": 2,
@@ -155,7 +155,7 @@ def analyze(audio_path: Path):
                     extractor = es.KeyExtractor(profileType=profile)
                     key_name, scale, strength = extractor(y)
 
-                    pitch = key_mapping.get(key_name, 0)
+                    pitch = KEY_MAP.get(key_name, 0)
                     mode = 1 if scale == "major" else 0
                     camelot = pitch_to_camelot(pitch, mode) or "8A"
 
