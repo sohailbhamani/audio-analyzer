@@ -2,7 +2,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypedDict, cast
+from typing import TypedDict, cast
 
 import click
 import numpy as np
@@ -17,7 +17,7 @@ class KeyResult(TypedDict):
 
     key: str
     confidence: float
-    profile: Optional[str]
+    profile: str | None
 
 
 def pitch_to_camelot(pitch_class: int, mode: int) -> str | None:
@@ -151,7 +151,7 @@ def analyze(audio_path: Path):
         }
 
         profiles = ["edma", "bgate", "temperley"]
-        key_results: List[KeyResult] = []
+        key_results: list[KeyResult] = []
 
         if hasattr(es, "KeyExtractor"):
             # Standard Essentia builds might only support default or require specific config
