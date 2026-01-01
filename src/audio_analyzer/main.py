@@ -2,6 +2,7 @@ import json
 import logging
 import sys
 from pathlib import Path
+from typing import TypedDict, cast
 
 import click
 import numpy as np
@@ -9,6 +10,14 @@ import numpy as np
 # Configure logging to stderr so stdout is clean for JSON
 logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")
 logger = logging.getLogger("audio-analyzer")
+
+
+class KeyResult(TypedDict):
+    """Structure for key extraction results."""
+
+    key: str
+    confidence: float
+    profile: str | None
 
 
 def pitch_to_camelot(pitch_class: int, mode: int) -> str | None:
@@ -126,7 +135,7 @@ def analyze(audio_path: Path):
         # 2. Key Detection - Multi-profile Voting ------------------------------
         from collections import Counter
 
-        KEY_MAP = {
+        key_mapping = {
             "C": 0,
             "C#": 1,
             "D": 2,
@@ -142,7 +151,7 @@ def analyze(audio_path: Path):
         }
 
         profiles = ["edma", "bgate", "temperley"]
-        key_results = []
+        key_results: list[KeyResult] = []
 
         if hasattr(es, "KeyExtractor"):
             # Standard Essentia builds might only support default or require specific config
@@ -155,7 +164,7 @@ def analyze(audio_path: Path):
                     extractor = es.KeyExtractor(profileType=profile)
                     key_name, scale, strength = extractor(y)
 
-                    pitch = KEY_MAP.get(key_name, 0)
+                    pitch = key_mapping.get(key_name, 0)
                     mode = 1 if scale == "major" else 0
                     camelot = pitch_to_camelot(pitch, mode) or "8A"
 
@@ -168,12 +177,12 @@ def analyze(audio_path: Path):
             try:
                 extractor = es.KeyExtractor()
                 key_name, scale, strength = extractor(y)
-                pitch = KEY_MAP.get(key_name, 0)
+                pitch = key_mapping.get(key_name, 0)
                 mode = 1 if scale == "major" else 0
                 camelot = pitch_to_camelot(pitch, mode) or "8A"
-                key_results.append({"key": camelot, "confidence": float(strength)})
+                key_results.append({"key": camelot, "confidence": float(strength), "profile": None})
             except Exception:
-                key_results.append({"key": "8A", "confidence": 0.0})
+                key_results.append({"key": "8A", "confidence": 0.0, "profile": None})
 
         # Voting Logic
         # 1. Count occurrences
@@ -184,20 +193,22 @@ def analyze(audio_path: Path):
         key_confidence = 0.0
 
         if most_common:
-            top_key, count = most_common[0]
+            # Cast for mypy since most_common can return Generic types
+            top_key = cast(str, most_common[0][0])
+            count = cast(int, most_common[0][1])
 
             # Case A: Majority (2 or 3 agree)
             if count >= 2:
                 final_key = top_key
                 # Avg confidence of matching results
-                matches = [r["confidence"] for r in key_results if r["key"] == top_key]
+                matches = [float(r["confidence"]) for r in key_results if r["key"] == top_key]
                 key_confidence = sum(matches) / len(matches)
 
             # Case B: All differ (1, 1, 1) -> Take highest confidence
             else:
-                best_result = max(key_results, key=lambda x: x["confidence"])
-                final_key = best_result["key"]
-                key_confidence = best_result["confidence"]
+                best_result = max(key_results, key=lambda x: float(x["confidence"]))
+                final_key = cast(str, best_result["key"])
+                key_confidence = float(best_result["confidence"])
 
         # 3. Energy Detection -------------------------------------------------
         try:
@@ -278,3 +289,4 @@ def analyze(audio_path: Path):
 
 if __name__ == "__main__":
     cli()
+# Trigger CI
