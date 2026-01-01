@@ -123,11 +123,10 @@ def analyze(audio_path: Path):
         final_bpm = float(essentia_bpm)
         bpm_confidence = min(1.0, float(beats_confidence) / 10.0)
 
-        # 2. Key Detection ----------------------------------------------------
-        key_extractor = es.KeyExtractor()
-        key_name, scale, key_strength = key_extractor(y)
+        # 2. Key Detection - Multi-profile Voting ------------------------------
+        from collections import Counter
 
-        key_map = {
+        KEY_MAP = {
             "C": 0,
             "C#": 1,
             "D": 2,
@@ -141,10 +140,64 @@ def analyze(audio_path: Path):
             "A#": 10,
             "B": 11,
         }
-        pitch = key_map.get(key_name, 0)
-        mode = 1 if scale == "major" else 0
-        final_key = pitch_to_camelot(pitch, mode) or "8A"
-        key_confidence = float(key_strength)
+
+        profiles = ["edma", "bgate", "temperley"]
+        key_results = []
+
+        if hasattr(es, "KeyExtractor"):
+            # Standard Essentia builds might only support default or require specific config
+            # We try multiple profileTypes. If profileType is not supported in the
+            # installed python bindings (depends on version), we might need fallback.
+            # However, standard KeyExtractor(profileType=...) is common.
+
+            for profile in profiles:
+                try:
+                    extractor = es.KeyExtractor(profileType=profile)
+                    key_name, scale, strength = extractor(y)
+
+                    pitch = KEY_MAP.get(key_name, 0)
+                    mode = 1 if scale == "major" else 0
+                    camelot = pitch_to_camelot(pitch, mode) or "8A"
+
+                    key_results.append({"profile": profile, "key": camelot, "confidence": float(strength)})
+                except Exception as e:
+                    logger.warning(f"Key profile {profile} failed: {e}")
+
+        # If no results (e.g. all failed), use default
+        if not key_results:
+            try:
+                extractor = es.KeyExtractor()
+                key_name, scale, strength = extractor(y)
+                pitch = KEY_MAP.get(key_name, 0)
+                mode = 1 if scale == "major" else 0
+                camelot = pitch_to_camelot(pitch, mode) or "8A"
+                key_results.append({"key": camelot, "confidence": float(strength)})
+            except Exception:
+                key_results.append({"key": "8A", "confidence": 0.0})
+
+        # Voting Logic
+        # 1. Count occurrences
+        counts = Counter(r["key"] for r in key_results)
+        most_common = counts.most_common()  # [(key, count), ...]
+
+        final_key = "8A"
+        key_confidence = 0.0
+
+        if most_common:
+            top_key, count = most_common[0]
+
+            # Case A: Majority (2 or 3 agree)
+            if count >= 2:
+                final_key = top_key
+                # Avg confidence of matching results
+                matches = [r["confidence"] for r in key_results if r["key"] == top_key]
+                key_confidence = sum(matches) / len(matches)
+
+            # Case B: All differ (1, 1, 1) -> Take highest confidence
+            else:
+                best_result = max(key_results, key=lambda x: x["confidence"])
+                final_key = best_result["key"]
+                key_confidence = best_result["confidence"]
 
         # 3. Energy Detection -------------------------------------------------
         try:
