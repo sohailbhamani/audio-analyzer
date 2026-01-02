@@ -10,7 +10,10 @@ A GPL-licensed CLI tool for audio analysis using Essentia and Librosa. Detects B
 ## Features
 
 - **BPM Detection**: Dual-engine analysis using both Essentia and Librosa for accuracy
-- **Key Detection**: Musical key in Camelot notation (DJ-friendly)
+- **Key Detection**: Multi-profile key analysis with voting consensus
+  - Uses three Essentia profiles: `edma`, `bgate`, and `temperley`
+  - Voting logic: if 2+ profiles agree, use consensus; otherwise use highest confidence
+  - Results in Camelot notation (DJ-friendly)
 - **Energy Analysis**: Percentile-based energy level (0-100)
 - **Vocal Detection**: Spectral analysis to detect vocal presence
 
@@ -52,13 +55,8 @@ audio-analyzer analyze path/to/song.mp3
 ## Development
 
 ```bash
-# Run tests (Fast/Smoke suite)
-# This is what runs in GitHub Actions CI
-pytest -m "not slow"
-
-# Run full test suite (Slow, includes synthetic audio generation)
-# Run this locally before major releases
-pytest -m "slow or not slow"
+# Run tests
+pytest
 
 # Run linter
 ruff check .
