@@ -15,7 +15,8 @@ logger = logging.getLogger("audio-analyzer")
 class KeyResult(TypedDict):
     """Structure for key extraction results."""
 
-    key: str
+    key: str  # Camelot notation (e.g., "8B")
+    key_raw: str  # Raw key (e.g., "C major")
     confidence: float
     profile: str | None
 
@@ -167,8 +168,16 @@ def analyze(audio_path: Path):
                     pitch = key_mapping.get(key_name, 0)
                     mode = 1 if scale == "major" else 0
                     camelot = pitch_to_camelot(pitch, mode) or "8A"
+                    key_raw = f"{key_name} {scale}"
 
-                    key_results.append({"profile": profile, "key": camelot, "confidence": float(strength)})
+                    key_results.append(
+                        {
+                            "profile": profile,
+                            "key": camelot,
+                            "key_raw": key_raw,
+                            "confidence": float(strength),
+                        }
+                    )
                 except Exception as e:
                     logger.warning(f"Key profile {profile} failed: {e}")
 
@@ -180,9 +189,24 @@ def analyze(audio_path: Path):
                 pitch = key_mapping.get(key_name, 0)
                 mode = 1 if scale == "major" else 0
                 camelot = pitch_to_camelot(pitch, mode) or "8A"
-                key_results.append({"key": camelot, "confidence": float(strength), "profile": None})
+                key_raw = f"{key_name} {scale}"
+                key_results.append(
+                    {
+                        "key": camelot,
+                        "key_raw": key_raw,
+                        "confidence": float(strength),
+                        "profile": None,
+                    }
+                )
             except Exception:
-                key_results.append({"key": "8A", "confidence": 0.0, "profile": None})
+                key_results.append(
+                    {
+                        "key": "8A",
+                        "key_raw": "A minor",
+                        "confidence": 0.0,
+                        "profile": None,
+                    }
+                )
 
         # Voting Logic
         # 1. Count occurrences
@@ -190,6 +214,7 @@ def analyze(audio_path: Path):
         most_common = counts.most_common()  # [(key, count), ...]
 
         final_key = "8A"
+        final_key_raw = "A minor"
         key_confidence = 0.0
 
         if most_common:
@@ -201,13 +226,16 @@ def analyze(audio_path: Path):
             if count >= 2:
                 final_key = top_key
                 # Avg confidence of matching results
-                matches = [float(r["confidence"]) for r in key_results if r["key"] == top_key]
-                key_confidence = sum(matches) / len(matches)
+                matches = [r for r in key_results if r["key"] == top_key]
+                key_confidence = sum(float(r["confidence"]) for r in matches) / len(matches)
+                # Use raw key from first matching profile
+                final_key_raw = cast(str, matches[0]["key_raw"])
 
             # Case B: All differ (1, 1, 1) -> Take highest confidence
             else:
                 best_result = max(key_results, key=lambda x: float(x["confidence"]))
                 final_key = cast(str, best_result["key"])
+                final_key_raw = cast(str, best_result["key_raw"])
                 key_confidence = float(best_result["confidence"])
 
         # 3. Energy Detection -------------------------------------------------
@@ -273,10 +301,12 @@ def analyze(audio_path: Path):
         result = {
             "bpm": final_bpm,
             "key": final_key,
+            "key_raw": final_key_raw,
             "energy": final_energy,
             "has_vocals": bool(has_vocals),
             "bpm_confidence": float(bpm_confidence),
             "key_confidence": float(key_confidence),
+            "key_profiles": key_results,
         }
         click.echo(json.dumps(result))
 
