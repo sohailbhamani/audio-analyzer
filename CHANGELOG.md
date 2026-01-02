@@ -2,6 +2,15 @@
 
 
 
+## v0.2.1 (2026-01-02)
+
+### Fix
+
+* fix(ci): use RELEASE_TOKEN for semantic-release bypass
+
+Allows semantic-release to push version commits with admin bypass ([`541074f`](https://github.com/sohailbhamani/audio-analyzer/commit/541074fbe16afa1e962339390c72c1c759b37a53))
+
+
 ## v0.2.0 (2026-01-02)
 
 ### Breaking
