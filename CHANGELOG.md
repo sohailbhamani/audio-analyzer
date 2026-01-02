@@ -2,6 +2,37 @@
 
 
 
+## v0.2.0 (2026-01-02)
+
+### Breaking
+
+* feat(output): add key_raw and key_profiles to JSON (#13)
+
+- Extended KeyResult to include key_raw (e.g., &#39;C major&#39;)
+- key_profiles array includes per-profile results with confidence
+- Final voted key includes raw key name for conversion verification
+
+BREAKING CHANGE: Output JSON now includes key_raw and key_profiles fields
+
+Co-authored-by: Sohail &lt;sohail@waxlogic.io&gt; ([`e4d0544`](https://github.com/sohailbhamani/audio-analyzer/commit/e4d0544003720be34776507ccf5408521955690a))
+
+### Chore
+
+* chore: trigger release v2 ([`4f873ab`](https://github.com/sohailbhamani/audio-analyzer/commit/4f873abd74a3b94fdae3a0e7695315b59471a447))
+
+* chore: trigger release ([`6924b70`](https://github.com/sohailbhamani/audio-analyzer/commit/6924b708a5ee78d8c1fb7b7a27c33a716131039e))
+
+### Documentation
+
+* docs: update README with multi-profile analysis and remove WaxLogic test instructions ([`d40a510`](https://github.com/sohailbhamani/audio-analyzer/commit/d40a5105ff3d6c66819fd8142297a3f4cc360b06))
+
+### Unknown
+
+* Merge pull request #11 from sohailbhamani/docs/update-readme
+
+docs: update README with multi-profile analysis ([`fb34a60`](https://github.com/sohailbhamani/audio-analyzer/commit/fb34a601beab33b59a8e1e353b2d55510cf02038))
+
+
 ## v0.1.0 (2026-01-01)
 
 ### Chore
