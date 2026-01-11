@@ -23,7 +23,7 @@ Allows semantic-release to push version commits with admin bypass ([`541074f`](h
 
 BREAKING CHANGE: Output JSON now includes key_raw and key_profiles fields
 
-Co-authored-by: Sohail &lt;sohail@waxlogic.io&gt; ([`e4d0544`](https://github.com/sohailbhamani/audio-analyzer/commit/e4d0544003720be34776507ccf5408521955690a))
+Co-authored-by: Sohail &lt;sohailbhamani@users.noreply.github.com&gt; ([`e4d0544`](https://github.com/sohailbhamani/audio-analyzer/commit/e4d0544003720be34776507ccf5408521955690a))
 
 ### Chore
 
@@ -33,7 +33,7 @@ Co-authored-by: Sohail &lt;sohail@waxlogic.io&gt; ([`e4d0544`](https://github.co
 
 ### Documentation
 
-* docs: update README with multi-profile analysis and remove WaxLogic test instructions ([`d40a510`](https://github.com/sohailbhamani/audio-analyzer/commit/d40a5105ff3d6c66819fd8142297a3f4cc360b06))
+* docs: update README with multi-profile analysis and remove Internal test instructions ([`d40a510`](https://github.com/sohailbhamani/audio-analyzer/commit/d40a5105ff3d6c66819fd8142297a3f4cc360b06))
 
 ### Unknown
 
@@ -172,7 +172,7 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 
 ---------
 
-Co-authored-by: Sohail &lt;sohail@waxlogic.io&gt; ([`a90a707`](https://github.com/sohailbhamani/audio-analyzer/commit/a90a7072c71f81ab95c066e8ec63704310de42e1))
+Co-authored-by: Sohail &lt;sohailbhamani@users.noreply.github.com&gt; ([`a90a707`](https://github.com/sohailbhamani/audio-analyzer/commit/a90a7072c71f81ab95c066e8ec63704310de42e1))
 
 * chore: add OSS files (README, CONTRIBUTING, CODE_OF_CONDUCT, templates) ([`866b702`](https://github.com/sohailbhamani/audio-analyzer/commit/866b702e7f045cb7e595a596549e4b0eb6c8be0c))
 
@@ -214,7 +214,7 @@ Co-authored-by: Sohail &lt;sohail@waxlogic.io&gt; ([`a90a707`](https://github.co
 
 ---------
 
-Co-authored-by: Sohail &lt;sohail@waxlogic.io&gt; ([`5642463`](https://github.com/sohailbhamani/audio-analyzer/commit/564246351acd3f58daf60704901c91e3408c353e))
+Co-authored-by: Sohail &lt;sohailbhamani@users.noreply.github.com&gt; ([`5642463`](https://github.com/sohailbhamani/audio-analyzer/commit/564246351acd3f58daf60704901c91e3408c353e))
 
 ### Unknown
 
