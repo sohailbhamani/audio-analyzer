@@ -1,17 +1,13 @@
-"""Parameterized BPM detection tests using drum patterns."""
-
-import json
-import subprocess
-import sys
+from pathlib import Path
 
 import pytest
 
+from audio_analyzer.main import analyze_audio
 
-def run_analyzer(file_path: str) -> subprocess.CompletedProcess:
-    """Run the audio-analyzer CLI on the given file path."""
-    cmd = [sys.executable, "-m", "audio_analyzer.main", "analyze", str(file_path)]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    return result
+
+def run_analyzer(file_path: str) -> dict:
+    """Run the audio-analyzer internal API on the given file path."""
+    return analyze_audio(Path(file_path))
 
 
 class TestBPMDetectionWithDrums:
@@ -34,10 +30,7 @@ class TestBPMDetectionWithDrums:
         """Verify BPM detection with standard 4/4 drum pattern."""
         path = generated_drum_file(bpm=bpm, duration=15.0, pattern="four_on_floor")
 
-        result = run_analyzer(path)
-        assert result.returncode == 0, f"Analyzer failed: {result.stderr}"
-
-        data = json.loads(result.stdout)
+        data = run_analyzer(path)
         detected_bpm = data["bpm"]
 
         # Allow 2 BPM tolerance or half/double (octave error)
@@ -65,10 +58,7 @@ class TestBPMDetectionWithDrums:
         """Verify BPM detection with various drum patterns."""
         path = generated_drum_file(bpm=bpm, duration=15.0, pattern=pattern)
 
-        result = run_analyzer(path)
-        assert result.returncode == 0, f"Analyzer failed: {result.stderr}"
-
-        data = json.loads(result.stdout)
+        data = run_analyzer(path)
         detected_bpm = data["bpm"]
 
         # More lenient for complex patterns (breakbeat, halftime)
@@ -83,10 +73,7 @@ class TestBPMDetectionWithDrums:
         """Verify BPM confidence is returned and reasonable."""
         path = generated_drum_file(bpm=120, duration=15.0, pattern="four_on_floor")
 
-        result = run_analyzer(path)
-        assert result.returncode == 0
-
-        data = json.loads(result.stdout)
+        data = run_analyzer(path)
         assert "bpm_confidence" in data
         assert 0 <= data["bpm_confidence"] <= 1.0
 
@@ -103,10 +90,7 @@ class TestBPMWithClickTrack:
         """Verify BPM detection with chord + click track."""
         path = generated_audio_file(camelot="8B", bpm=bpm, duration=10.0)
 
-        result = run_analyzer(path)
-        assert result.returncode == 0, f"Analyzer failed: {result.stderr}"
-
-        data = json.loads(result.stdout)
+        data = run_analyzer(path)
         detected_bpm = data["bpm"]
 
         # Allow tolerance
