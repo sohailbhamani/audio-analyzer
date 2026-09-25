@@ -104,7 +104,9 @@ def analyze(audio_path: Path):
                 segment = y[start:end]
                 # librosa's type hints can be tricky, cast return to float
                 tempo = librosa.beat.beat_track(y=segment, sr=sr)[0]
-                bpm = float(tempo)
+                # librosa returns tempo as a 1-element array; numpy >= 2.5 refuses
+                # float() on anything but a 0-d array.
+                bpm = float(np.asarray(tempo).reshape(-1)[0])
 
                 # Fix octave errors (normalize to 80-160 - typical DJ tempo range)
                 if bpm > 0:
