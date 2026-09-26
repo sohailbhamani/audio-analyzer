@@ -2,6 +2,40 @@
 
 
 
+## v0.3.0 (2026-09-26)
+
+### Feature
+
+* feat: add bpm_candidates and widen tempo range to 60-200
+
+Stop hard-folding tempo into 80-160. The detector&#39;s estimate is folded
+into 60-200 and scored, together with its x2, /2, x1.5 and /1.5
+relatives, by how well a regular beat grid explains the onset envelope.
+bpm_candidates lists up to 4 {bpm, score} entries, best first, so
+downstream apps can pick using their own context (e.g. genre). bpm only
+switches away from the detector&#39;s estimate when a relative scores 1.5x
+higher.
+
+Also upper-bound librosa&lt;1, numba&lt;0.63 and numpy&lt;2.4: unpinned fresh
+installs segfault in librosa.beat.beat_track on Linux.
+
+Fixes #30
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt; ([`4022ac7`](https://github.com/sohailbhamani/audio-analyzer/commit/4022ac77be6bcd430cfe8ffbcb054f488534989e))
+
+### Fix
+
+* fix: stop stacking override margin on discounted low-tempo detector estimate
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt; ([`2cde71a`](https://github.com/sohailbhamani/audio-analyzer/commit/2cde71acea34f61ee6a8ea1c962e13e18bfd66be))
+
+### Unknown
+
+* Merge pull request #31 from sohailbhamani/feat/tempo-candidates
+
+feat: add bpm_candidates, widen tempo range to 60-200 ([`97d0bf4`](https://github.com/sohailbhamani/audio-analyzer/commit/97d0bf4b2ab74ffa03a97555659bdf86e842b4e6))
+
+
 ## v0.2.2 (2026-09-25)
 
 ### Chore
