@@ -64,6 +64,47 @@ def pitch_to_camelot(pitch_class: int, mode: int) -> str | None:
     return camelot_map.get((pitch_class, mode))
 
 
+MIN_BPM, MAX_BPM = 80, 160
+# A 3:2 alternative must clearly beat the detected tempo on the kick-band grid.
+HEMIOLA_MIN_SCORE = 0.6
+HEMIOLA_MIN_MARGIN = 0.4
+
+
+def _kick_grid_score(y: np.ndarray, sr: int, bpm: float) -> float:
+    """Autocorrelation of the sub-100Hz onset envelope at the lag of `bpm` (~1 = kick on every beat)."""
+    import librosa
+
+    hop = 512
+    env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop, fmax=100, n_mels=6, n_fft=4096)
+    env = env - env.mean()
+    ac = librosa.autocorrelate(env, max_size=len(env) // 2)
+    if ac[0] <= 0:
+        return 0.0
+    lag = 60.0 / bpm * sr / hop
+    lo, hi = int(np.floor(lag * 0.97)), int(np.ceil(lag * 1.03))
+    if hi >= len(ac):
+        return 0.0
+    return float(ac[lo : hi + 1].max() / ac[0])
+
+
+def resolve_hemiola(y: np.ndarray, sr: int, bpm: float) -> float:
+    """Fix 3:2 tempo errors (e.g. 126 read as 84), which octave folding cannot catch.
+
+    Keeps `bpm` unless bpm*1.5 or bpm/1.5 fits the kick pattern much better.
+    """
+    base = _kick_grid_score(y, sr, bpm)
+    best, best_score = bpm, base
+    for alt in (bpm * 1.5, bpm / 1.5):
+        if not MIN_BPM <= alt <= MAX_BPM:
+            continue
+        score = _kick_grid_score(y, sr, alt)
+        if score > best_score:
+            best, best_score = alt, score
+    if best != bpm and best_score >= HEMIOLA_MIN_SCORE and best_score - base >= HEMIOLA_MIN_MARGIN:
+        return float(round(best))
+    return bpm
+
+
 @click.group()
 def cli():
     """Audio Analyzer CLI - Detect BPM, Key, Energy, and Vocals."""
@@ -141,7 +182,7 @@ def analyze_audio(audio_path: Path) -> dict:
     essentia_bpm = round(essentia_bpm)
 
     # Prefer Essentia
-    final_bpm = float(essentia_bpm)
+    final_bpm = resolve_hemiola(y, sr, float(essentia_bpm))
     bpm_confidence = min(1.0, float(beats_confidence) / 10.0)
 
     # 2. Key Detection - Multi-profile Voting ------------------------------
