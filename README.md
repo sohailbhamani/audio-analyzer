@@ -58,6 +58,10 @@ audio-analyzer analyze path/to/song.mp3
 }
 ```
 
+### Batch processing
+
+Numba (used by Librosa) compiles and caches functions on first use. If several `audio-analyzer` processes start at once with a cold cache, they can race on the cache and crash. Analyze one file first to warm the cache, then run the rest in parallel.
+
 ## Development
 
 ```bash

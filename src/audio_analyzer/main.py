@@ -71,6 +71,10 @@ TEMPO_RELATIVES = (1.0, 2.0, 0.5, 1.5, 1 / 1.5)
 MAX_TEMPO_CANDIDATES = 4
 # A relative tempo must beat the detector's own estimate by this factor to replace it.
 TEMPO_OVERRIDE_MARGIN = 1.5
+# Below this, a tempo is usually a half-time reading of the true tempo, so its score is
+# discounted by LOW_TEMPO_MARGIN when choosing the headline (candidates are unaffected).
+LOW_TEMPO_BPM = 70.0
+LOW_TEMPO_MARGIN = 1.5
 
 
 def _beat_grid_score(env: np.ndarray, tempo: float, fps: float) -> tuple[float, float]:
@@ -122,6 +126,30 @@ def tempo_candidates(y: np.ndarray, sr: int, detected_bpm: float) -> list[dict[s
             scored.append({"bpm": round(refined, 1), "score": round(score, 3)})
     scored.sort(key=lambda c: c["score"], reverse=True)
     return scored[:MAX_TEMPO_CANDIDATES]
+
+
+def select_headline_bpm(folded_bpm: float, candidates: list[dict[str, float]]) -> float:
+    """Pick the headline BPM: the detector's estimate unless a candidate is clearly better.
+
+    Tempos below LOW_TEMPO_BPM need LOW_TEMPO_MARGIN times the evidence of the next
+    candidate at or above it, so a half-tempo cannot win on a near-tie.
+    """
+
+    def effective(c: dict[str, float]) -> float:
+        return c["score"] / LOW_TEMPO_MARGIN if c["bpm"] < LOW_TEMPO_BPM else c["score"]
+
+    final_bpm = float(round(folded_bpm))
+    if not candidates:
+        return final_bpm
+    detector_score = max(
+        (effective(c) for c in candidates if abs(c["bpm"] - folded_bpm) <= 0.03 * folded_bpm), default=0.0
+    )
+    best = max(candidates, key=effective)
+    # A sub-LOW_TEMPO_BPM detector estimate is already discounted; don't stack the override margin on it.
+    margin = 1.0 if folded_bpm < LOW_TEMPO_BPM else TEMPO_OVERRIDE_MARGIN
+    if effective(best) > detector_score * margin:
+        final_bpm = float(round(best["bpm"]))
+    return final_bpm
 
 
 @click.group()
@@ -203,13 +231,7 @@ def analyze_audio(audio_path: Path) -> dict:
     bpm_candidates = tempo_candidates(y, sr, essentia_bpm)
 
     # Prefer Essentia unless a relative tempo is clearly better supported
-    final_bpm = float(round(folded_bpm))
-    if bpm_candidates:
-        detector_score = max(
-            (c["score"] for c in bpm_candidates if abs(c["bpm"] - folded_bpm) <= 0.03 * folded_bpm), default=0.0
-        )
-        if bpm_candidates[0]["score"] > detector_score * TEMPO_OVERRIDE_MARGIN:
-            final_bpm = float(round(bpm_candidates[0]["bpm"]))
+    final_bpm = select_headline_bpm(folded_bpm, bpm_candidates)
     bpm_confidence = min(1.0, float(beats_confidence) / 10.0)
 
     # 2. Key Detection - Multi-profile Voting ------------------------------

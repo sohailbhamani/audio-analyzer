@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from audio_analyzer.main import analyze_audio
+from audio_analyzer.main import analyze_audio, select_headline_bpm
 
 
 def run_analyzer(file_path: str) -> dict:
@@ -139,3 +139,24 @@ class TestBPMCandidates:
 
         assert abs(data["bpm"] - bpm) <= 2, f"Expected ~{bpm} BPM, got {data['bpm']}"
         assert _candidate_for(data, bpm) is not None, f"{bpm} not in {data['bpm_candidates']}"
+
+
+class TestHeadlineSelection:
+    """A sub-70 half-tempo must not win the headline on a near-tie."""
+
+    def test_half_tempo_near_tie_loses(self):
+        candidates = [{"bpm": 63.0, "score": 0.30}, {"bpm": 126.0, "score": 0.26}]
+        assert select_headline_bpm(63.0, candidates) == 126.0
+
+    def test_half_tempo_needs_clearly_stronger_evidence(self):
+        candidates = [{"bpm": 63.0, "score": 0.60}, {"bpm": 126.0, "score": 0.30}]
+        assert select_headline_bpm(63.0, candidates) == 63.0
+
+    def test_low_tempo_stays_in_candidates(self):
+        candidates = [{"bpm": 63.0, "score": 0.30}, {"bpm": 126.0, "score": 0.26}]
+        select_headline_bpm(63.0, candidates)
+        assert {c["bpm"] for c in candidates} == {63.0, 126.0}
+
+    def test_mid_tempo_detector_kept_without_margin(self):
+        candidates = [{"bpm": 128.0, "score": 0.30}, {"bpm": 85.3, "score": 0.35}]
+        assert select_headline_bpm(128.0, candidates) == 128.0
