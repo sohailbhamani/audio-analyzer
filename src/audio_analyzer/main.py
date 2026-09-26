@@ -64,6 +64,66 @@ def pitch_to_camelot(pitch_class: int, mode: int) -> str | None:
     return camelot_map.get((pitch_class, mode))
 
 
+MIN_BPM = 60.0
+MAX_BPM = 200.0
+# Tempo relatives of the detected tempo that are scored as candidates.
+TEMPO_RELATIVES = (1.0, 2.0, 0.5, 1.5, 1 / 1.5)
+MAX_TEMPO_CANDIDATES = 4
+# A relative tempo must beat the detector's own estimate by this factor to replace it.
+TEMPO_OVERRIDE_MARGIN = 1.5
+
+
+def _beat_grid_score(env: np.ndarray, tempo: float, fps: float) -> tuple[float, float]:
+    """Score how well a regular beat grid at ~`tempo` BPM explains an onset envelope.
+
+    Searches phase and a +-3% tempo neighbourhood for the grid that captures the most
+    onset strength. Returns (score, refined_tempo). The score is precision (mean strength
+    on the grid) x coverage (share of total strength on the grid), so both a sparse grid
+    that misses onsets and a dense grid that lands on silence are penalised.
+    """
+    n = len(env)
+    total = float(env.sum())
+    ref = float(np.percentile(env, 99)) if n else 0.0
+    if n < 4 or total <= 0 or ref <= 0:
+        return 0.0, tempo
+    # Tolerate one frame of jitter around each grid point.
+    padded = np.maximum(np.maximum(env, np.r_[env[1:], 0.0]), np.r_[0.0, env[:-1]])
+
+    best_score, best_tempo = 0.0, tempo
+    for candidate in tempo * np.linspace(0.97, 1.03, 25):
+        period = fps * 60.0 / candidate
+        for offset in np.arange(0.0, period, 0.5):
+            hits = padded[np.round(np.arange(offset, n - 1, period)).astype(int)]
+            score = min(float(hits.mean()) / ref, 1.0) * min(float(hits.sum()) / total, 1.0)
+            if score > best_score:
+                best_score, best_tempo = score, float(candidate)
+    return best_score, best_tempo
+
+
+def tempo_candidates(y: np.ndarray, sr: int, detected_bpm: float) -> list[dict[str, float]]:
+    """Score the detected tempo and its x2, /2, x1.5 and /1.5 relatives within 60-200 BPM.
+
+    Returns up to MAX_TEMPO_CANDIDATES {"bpm", "score"} entries, best score first.
+    """
+    import librosa
+
+    if detected_bpm <= 0:
+        return []
+    hop_length = 512
+    # Squared so strong hits (kick/snare) outweigh weak ones (hats) in the score.
+    env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length) ** 2
+    fps = sr / hop_length
+
+    scored = []
+    for ratio in TEMPO_RELATIVES:
+        tempo = detected_bpm * ratio
+        if MIN_BPM <= tempo <= MAX_BPM:
+            score, refined = _beat_grid_score(env, tempo, fps)
+            scored.append({"bpm": round(refined, 1), "score": round(score, 3)})
+    scored.sort(key=lambda c: c["score"], reverse=True)
+    return scored[:MAX_TEMPO_CANDIDATES]
+
+
 @click.group()
 def cli():
     """Audio Analyzer CLI - Detect BPM, Key, Energy, and Vocals."""
@@ -132,16 +192,24 @@ def analyze_audio(audio_path: Path) -> dict:
     essentia_bpm, _, beats_confidence, _, _ = rhythm_extractor(y)
     essentia_bpm = float(essentia_bpm)
 
-    # Apply octave correction to Essentia
-    if essentia_bpm > 0:
-        while essentia_bpm < 80:
-            essentia_bpm = essentia_bpm * 2
-        while essentia_bpm > 160:
-            essentia_bpm = essentia_bpm / 2
-    essentia_bpm = round(essentia_bpm)
+    # Fold only into the plausible 60-200 range, then let beat-grid evidence over
+    # the tempo relatives decide whether a different octave/ratio fits better.
+    folded_bpm = essentia_bpm
+    if folded_bpm > 0:
+        while folded_bpm < MIN_BPM:
+            folded_bpm = folded_bpm * 2
+        while folded_bpm > MAX_BPM:
+            folded_bpm = folded_bpm / 2
+    bpm_candidates = tempo_candidates(y, sr, essentia_bpm)
 
-    # Prefer Essentia
-    final_bpm = float(essentia_bpm)
+    # Prefer Essentia unless a relative tempo is clearly better supported
+    final_bpm = float(round(folded_bpm))
+    if bpm_candidates:
+        detector_score = max(
+            (c["score"] for c in bpm_candidates if abs(c["bpm"] - folded_bpm) <= 0.03 * folded_bpm), default=0.0
+        )
+        if bpm_candidates[0]["score"] > detector_score * TEMPO_OVERRIDE_MARGIN:
+            final_bpm = float(round(bpm_candidates[0]["bpm"]))
     bpm_confidence = min(1.0, float(beats_confidence) / 10.0)
 
     # 2. Key Detection - Multi-profile Voting ------------------------------
@@ -311,6 +379,7 @@ def analyze_audio(audio_path: Path) -> dict:
     # Output JSON
     result = {
         "bpm": final_bpm,
+        "bpm_candidates": bpm_candidates,
         "key": final_key,
         "key_raw": final_key_raw,
         "energy": final_energy,

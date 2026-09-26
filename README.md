@@ -44,6 +44,12 @@ audio-analyzer analyze path/to/song.mp3
 ```json
 {
   "bpm": 128.0,
+  "bpm_candidates": [
+    { "bpm": 127.9, "score": 0.416 },
+    { "bpm": 64.0, "score": 0.258 },
+    { "bpm": 85.3, "score": 0.196 },
+    { "bpm": 191.9, "score": 0.112 }
+  ],
   "key": "8A",
   "energy": 75,
   "has_vocals": true,
