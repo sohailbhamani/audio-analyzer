@@ -64,10 +64,26 @@ def pitch_to_camelot(pitch_class: int, mode: int) -> str | None:
     return camelot_map.get((pitch_class, mode))
 
 
+class TempoResult(TypedDict):
+    """Structure for the tempo decision; the alt fields are None when no 3:2 alternative is in range."""
+
+    bpm: float
+    bpm_alt: float | None  # rejected alternative (the original estimate if we flipped)
+    bpm_alt_reason: str | None  # flipped_kick_grid[_librosa] | kept_kick_grid | kept_insufficient_margin
+    bpm_alt_confidence: float | None  # how far the chosen tempo beats bpm_alt on the kick grid, 0-1
+
+
 MIN_BPM, MAX_BPM = 80, 160
-# A 3:2 alternative must clearly beat the detected tempo on the kick-band grid.
-HEMIOLA_MIN_SCORE = 0.6
-HEMIOLA_MIN_MARGIN = 0.4
+# A 3:2 alternative must clearly beat the detected tempo on the kick-band grid:
+# an absolute score, a margin and a ratio (so a weak alternative can't win a weak base).
+HEMIOLA_MIN_SCORE = 0.5
+HEMIOLA_MIN_MARGIN = 0.2
+HEMIOLA_MIN_RATIO = 1.5
+# The independent librosa tempo may break a near tie, but only in favour of an alternative
+# it agrees with; it cannot flip on its own (the kick grid must still favour the alternative).
+HEMIOLA_LIBROSA_MIN_SCORE = 0.4
+HEMIOLA_LIBROSA_MIN_MARGIN = 0.1
+LIBROSA_AGREE_TOLERANCE = 0.03
 
 
 def _kick_grid_score(y: np.ndarray, sr: int, bpm: float) -> float:
@@ -87,22 +103,41 @@ def _kick_grid_score(y: np.ndarray, sr: int, bpm: float) -> float:
     return float(ac[lo : hi + 1].max() / ac[0])
 
 
-def resolve_hemiola(y: np.ndarray, sr: int, bpm: float) -> float:
-    """Fix 3:2 tempo errors (e.g. 126 read as 84), which octave folding cannot catch.
+def resolve_hemiola(y: np.ndarray, sr: int, bpm: float, librosa_bpm: float | None = None) -> TempoResult:
+    """Fix 3:2 tempo errors in both directions (126 read as 84, or 84 read as 126).
 
-    Keeps `bpm` unless bpm*1.5 or bpm/1.5 fits the kick pattern much better.
+    Keeps `bpm` unless bpm*1.5 or bpm/1.5 fits the kick pattern clearly better.
+    `librosa_bpm` (octave-folded) is a tiebreak that relaxes the margin for an alternative it agrees with.
     """
+    if bpm <= 0:
+        return {"bpm": bpm, "bpm_alt": None, "bpm_alt_reason": None, "bpm_alt_confidence": None}
+    alts = [alt for alt in (bpm * 1.5, bpm / 1.5) if MIN_BPM <= alt <= MAX_BPM]
+    if not alts:
+        return {"bpm": bpm, "bpm_alt": None, "bpm_alt_reason": None, "bpm_alt_confidence": None}
+
     base = _kick_grid_score(y, sr, bpm)
-    best, best_score = bpm, base
-    for alt in (bpm * 1.5, bpm / 1.5):
-        if not MIN_BPM <= alt <= MAX_BPM:
-            continue
-        score = _kick_grid_score(y, sr, alt)
-        if score > best_score:
-            best, best_score = alt, score
-    if best != bpm and best_score >= HEMIOLA_MIN_SCORE and best_score - base >= HEMIOLA_MIN_MARGIN:
-        return float(round(best))
-    return bpm
+    scored = [(alt, _kick_grid_score(y, sr, alt)) for alt in alts]
+    alt, alt_score = max(scored, key=lambda s: s[1])
+    agrees = librosa_bpm is not None and abs(librosa_bpm - alt) / alt <= LIBROSA_AGREE_TOLERANCE
+    min_score, min_margin = (
+        (HEMIOLA_LIBROSA_MIN_SCORE, HEMIOLA_LIBROSA_MIN_MARGIN) if agrees else (HEMIOLA_MIN_SCORE, HEMIOLA_MIN_MARGIN)
+    )
+    margin = alt_score - base
+    if alt_score >= min_score and margin >= min_margin and alt_score >= base * HEMIOLA_MIN_RATIO:
+        reason = "flipped_kick_grid_librosa" if agrees else "flipped_kick_grid"
+        return {
+            "bpm": float(round(alt)),
+            "bpm_alt": float(round(bpm)),
+            "bpm_alt_reason": reason,
+            "bpm_alt_confidence": round(min(1.0, margin), 3),
+        }
+    reason = "kept_kick_grid" if margin <= 0 else "kept_insufficient_margin"
+    return {
+        "bpm": bpm,
+        "bpm_alt": float(round(alt)),
+        "bpm_alt_reason": reason,
+        "bpm_alt_confidence": round(min(1.0, max(0.0, -margin)), 3),
+    }
 
 
 @click.group()
@@ -166,7 +201,7 @@ def analyze_audio(audio_path: Path) -> dict:
                     bpm = bpm / 2
             librosa_tempos.append(bpm)
 
-    _librosa_bpm = round(np.median(librosa_tempos)) if librosa_tempos else 120  # noqa: F841
+    librosa_bpm = float(np.median(librosa_tempos)) if librosa_tempos else None
 
     # Essentia BPM (RhythmExtractor2013 - best for electronic)
     rhythm_extractor = es.RhythmExtractor2013(method="multifeature")
@@ -182,7 +217,8 @@ def analyze_audio(audio_path: Path) -> dict:
     essentia_bpm = round(essentia_bpm)
 
     # Prefer Essentia
-    final_bpm = resolve_hemiola(y, sr, float(essentia_bpm))
+    tempo_result = resolve_hemiola(y, sr, float(essentia_bpm), librosa_bpm)
+    final_bpm = tempo_result["bpm"]
     bpm_confidence = min(1.0, float(beats_confidence) / 10.0)
 
     # 2. Key Detection - Multi-profile Voting ------------------------------
@@ -357,6 +393,9 @@ def analyze_audio(audio_path: Path) -> dict:
         "energy": final_energy,
         "has_vocals": bool(has_vocals),
         "bpm_confidence": float(bpm_confidence),
+        "bpm_alt": tempo_result["bpm_alt"],
+        "bpm_alt_reason": tempo_result["bpm_alt_reason"],
+        "bpm_alt_confidence": tempo_result["bpm_alt_confidence"],
         "key_confidence": float(key_confidence),
         "key_profiles": key_results,
     }

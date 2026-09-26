@@ -48,9 +48,17 @@ audio-analyzer analyze path/to/song.mp3
   "energy": 75,
   "has_vocals": true,
   "bpm_confidence": 0.85,
+  "bpm_alt": 85.0,
+  "bpm_alt_reason": "kept_kick_grid",
+  "bpm_alt_confidence": 0.58,
   "key_confidence": 0.72
 }
 ```
+
+`bpm_alt` is the 3:2 alternative tempo that was rejected (the original estimate if the tempo was flipped),
+`bpm_alt_reason` says why (`flipped_kick_grid`, `flipped_kick_grid_librosa`, `kept_kick_grid`,
+`kept_insufficient_margin`), and `bpm_alt_confidence` is how far the chosen tempo beats it on the kick-band grid
+(0–1). All three are `null` when no alternative falls in the 80–160 BPM range.
 
 ## Development
 
