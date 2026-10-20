@@ -64,6 +64,37 @@ def pitch_to_camelot(pitch_class: int, mode: int) -> str | None:
     return camelot_map.get((pitch_class, mode))
 
 
+# Every common spelling of each pitch class. Essentia reports flats (Ab, Bb, Eb, ...).
+NOTE_TO_PITCH = {
+    "C": 0, "B#": 0,
+    "C#": 1, "Db": 1,
+    "D": 2,
+    "D#": 3, "Eb": 3,
+    "E": 4, "Fb": 4,
+    "F": 5, "E#": 5,
+    "F#": 6, "Gb": 6,
+    "G": 7,
+    "G#": 8, "Ab": 8,
+    "A": 9,
+    "A#": 10, "Bb": 10,
+    "B": 11, "Cb": 11,
+}  # fmt: skip
+
+
+def key_to_camelot(key_name: str, scale: str) -> str:
+    """Convert a key name (sharp or flat spelling) and scale ("major"/"minor") to Camelot.
+
+    Raises ValueError for an unknown key name or scale instead of defaulting.
+    """
+    if key_name not in NOTE_TO_PITCH:
+        raise ValueError(f"Unknown key name: {key_name!r}")
+    if scale not in ("major", "minor"):
+        raise ValueError(f"Unknown scale: {scale!r}")
+    camelot = pitch_to_camelot(NOTE_TO_PITCH[key_name], 1 if scale == "major" else 0)
+    assert camelot is not None  # every pitch class 0-11 is mapped for both modes
+    return camelot
+
+
 MIN_BPM = 60.0
 MAX_BPM = 200.0
 # Tempo relatives of the detected tempo that are scored as candidates.
@@ -237,21 +268,6 @@ def analyze_audio(audio_path: Path) -> dict:
     # 2. Key Detection - Multi-profile Voting ------------------------------
     from collections import Counter
 
-    key_mapping = {
-        "C": 0,
-        "C#": 1,
-        "D": 2,
-        "D#": 3,
-        "E": 4,
-        "F": 5,
-        "F#": 6,
-        "G": 7,
-        "G#": 8,
-        "A": 9,
-        "A#": 10,
-        "B": 11,
-    }
-
     profiles = ["edma", "bgate", "temperley"]
     key_results: list[KeyResult] = []
 
@@ -266,9 +282,7 @@ def analyze_audio(audio_path: Path) -> dict:
                 extractor = es.KeyExtractor(profileType=profile)
                 key_name, scale, strength = extractor(y)
 
-                pitch = key_mapping.get(key_name, 0)
-                mode = 1 if scale == "major" else 0
-                camelot = pitch_to_camelot(pitch, mode) or "8A"
+                camelot = key_to_camelot(key_name, scale)
                 key_raw = f"{key_name} {scale}"
 
                 key_results.append(
@@ -287,9 +301,7 @@ def analyze_audio(audio_path: Path) -> dict:
         try:
             extractor = es.KeyExtractor()
             key_name, scale, strength = extractor(y)
-            pitch = key_mapping.get(key_name, 0)
-            mode = 1 if scale == "major" else 0
-            camelot = pitch_to_camelot(pitch, mode) or "8A"
+            camelot = key_to_camelot(key_name, scale)
             key_raw = f"{key_name} {scale}"
             key_results.append(
                 {
@@ -299,7 +311,8 @@ def analyze_audio(audio_path: Path) -> dict:
                     "profile": None,
                 }
             )
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Key detection failed: {e}")
             key_results.append(
                 {
                     "key": "8A",

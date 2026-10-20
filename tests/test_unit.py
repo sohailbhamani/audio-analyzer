@@ -2,7 +2,7 @@
 
 import pytest
 
-from audio_analyzer.main import pitch_to_camelot
+from audio_analyzer.main import key_to_camelot, pitch_to_camelot
 
 
 class TestPitchToCamelot:
@@ -102,3 +102,51 @@ class TestCamelotMappingConsistency:
                 result = pitch_to_camelot(pitch, mode)
                 if result is not None:
                     assert re.match(pattern, result), f"Invalid format: {result}"
+
+
+class TestKeyToCamelot:
+    """Key names map to Camelot for every enharmonic spelling, major and minor."""
+
+    @pytest.mark.parametrize(
+        "names, scale, expected",
+        [
+            # Major keys (B)
+            (["C", "B#"], "major", "8B"),
+            (["C#", "Db"], "major", "3B"),
+            (["D"], "major", "10B"),
+            (["D#", "Eb"], "major", "5B"),
+            (["E", "Fb"], "major", "12B"),
+            (["F", "E#"], "major", "7B"),
+            (["F#", "Gb"], "major", "2B"),
+            (["G"], "major", "9B"),
+            (["G#", "Ab"], "major", "4B"),
+            (["A"], "major", "11B"),
+            (["A#", "Bb"], "major", "6B"),
+            (["B", "Cb"], "major", "1B"),
+            # Minor keys (A)
+            (["C", "B#"], "minor", "5A"),
+            (["C#", "Db"], "minor", "12A"),
+            (["D"], "minor", "7A"),
+            (["D#", "Eb"], "minor", "2A"),
+            (["E", "Fb"], "minor", "9A"),
+            (["F", "E#"], "minor", "4A"),
+            (["F#", "Gb"], "minor", "11A"),
+            (["G"], "minor", "6A"),
+            (["G#", "Ab"], "minor", "1A"),
+            (["A"], "minor", "8A"),
+            (["A#", "Bb"], "minor", "3A"),
+            (["B", "Cb"], "minor", "10A"),
+        ],
+    )
+    def test_all_24_keys_and_enharmonics(self, names, scale, expected):
+        for name in names:
+            assert key_to_camelot(name, scale) == expected, f"{name} {scale}"
+
+    @pytest.mark.parametrize("name", ["H", "c", "Cbb", "", "X#"])
+    def test_unknown_key_name_raises(self, name):
+        with pytest.raises(ValueError, match="Unknown key name"):
+            key_to_camelot(name, "major")
+
+    def test_unknown_scale_raises(self):
+        with pytest.raises(ValueError, match="Unknown scale"):
+            key_to_camelot("C", "dorian")

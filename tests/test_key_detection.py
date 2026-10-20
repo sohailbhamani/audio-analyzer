@@ -100,3 +100,26 @@ class TestKeyConfidence:
 
         data = run_analyzer(path)
         assert data["key_confidence"] >= 0, "Key confidence should be non-negative"
+
+
+class TestFlatKeyNames:
+    """Flat key names from Essentia must reach the right Camelot code end to end."""
+
+    @pytest.mark.parametrize(
+        "key_name, scale, expected",
+        [("Ab", "minor", "1A"), ("Bb", "major", "6B"), ("Eb", "minor", "2A"), ("Db", "major", "3B")],
+    )
+    def test_flat_names_not_collapsed_to_c(self, monkeypatch, generated_audio_file, key_name, scale, expected):
+        import essentia.standard as es
+
+        class FakeKeyExtractor:
+            def __init__(self, **kwargs):
+                pass
+
+            def __call__(self, y):
+                return key_name, scale, 0.9
+
+        monkeypatch.setattr(es, "KeyExtractor", FakeKeyExtractor)
+        data = analyze_audio(Path(generated_audio_file(camelot="8B", bpm=120, duration=5.0)))
+        assert data["key"] == expected
+        assert data["key_raw"] == f"{key_name} {scale}"
