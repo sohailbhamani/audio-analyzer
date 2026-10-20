@@ -2,6 +2,40 @@
 
 
 
+## v0.3.1 (2026-10-20)
+
+### Fix
+
+* fix: map flat key names from Essentia to the right Camelot code (#32)
+
+* fix: map flat key names from Essentia to the right Camelot code
+
+Essentia&#39;s KeyExtractor reports flat note names (Ab, Bb, Eb, ...), but
+the key lookup only knew sharp names, so every flat key silently fell
+through to C (8B major / 5A minor).
+
+Add NOTE_TO_PITCH covering every sharp and flat spelling (plus B#, Cb,
+E#, Fb) and key_to_camelot(), which raises ValueError for an unknown
+key name or scale instead of defaulting. A profile that returns an
+unknown name is now logged and skipped rather than counted as C.
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;
+Claude-Session: https://claude.ai/code/session_01Kh5Phzomsym9K9XQafEzkf
+
+* test: drop Bb major xfail; raise instead of assert in key_to_camelot
+
+The synthetic Bb major case failed only because flat names fell through
+to C; it passes now. Replace the assert with an explicit raise so the
+check survives python -O.
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;
+Claude-Session: https://claude.ai/code/session_01Kh5Phzomsym9K9XQafEzkf
+
+---------
+
+Co-authored-by: Claude Opus 5.5 &lt;noreply@anthropic.com&gt; ([`d07b788`](https://github.com/sohailbhamani/audio-analyzer/commit/d07b788cb6e0f66dd168d882d5c961d2b6fa4dff))
+
+
 ## v0.3.0 (2026-09-26)
 
 ### Feature
