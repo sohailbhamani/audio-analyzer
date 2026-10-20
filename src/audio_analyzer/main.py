@@ -91,7 +91,8 @@ def key_to_camelot(key_name: str, scale: str) -> str:
     if scale not in ("major", "minor"):
         raise ValueError(f"Unknown scale: {scale!r}")
     camelot = pitch_to_camelot(NOTE_TO_PITCH[key_name], 1 if scale == "major" else 0)
-    assert camelot is not None  # every pitch class 0-11 is mapped for both modes
+    if camelot is None:  # every pitch class 0-11 is mapped for both modes
+        raise ValueError(f"No Camelot code for {key_name} {scale}")
     return camelot
 
 

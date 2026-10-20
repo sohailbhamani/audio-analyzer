@@ -25,7 +25,7 @@ class TestKeyDetection:
             ("11B", "A major"),
             ("12B", "E major"),
             ("7B", "F major"),
-            pytest.param("6B", "Bb major", marks=pytest.mark.xfail(reason="Essentia detects C major on synthetic Bb")),
+            ("6B", "Bb major"),
         ],
     )
     def test_major_key_detection(self, generated_audio_file, camelot, description):
