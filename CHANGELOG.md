@@ -2,6 +2,48 @@
 
 
 
+## v0.4.0 (2026-10-21)
+
+### Feature
+
+* feat: detect BPM with Beat This! small and expose beats and downbeats (#33)
+
+* feat: detect BPM with Beat This! small and expose beats and downbeats
+
+Replace the Essentia RhythmExtractor2013 tempo and the beat-grid headline
+re-ranking with the Beat This! beat tracker (&#34;small0&#34; checkpoint, MIT code
+and weights). The 8 MB checkpoint is bundled as package data and loaded on
+CPU; it is never downloaded at runtime, and the optional madmom DBN
+post-processing is not used.
+
+BPM is derived from the beat period with a robust estimate (mean of the
+inlier inter-beat intervals, refined by a least-squares fit of beat time
+against beat index) instead of a median interval, which the 20 ms frame grid
+biases by up to 4% at drum &amp; bass tempos. bpm_confidence is now the share of
+inlier intervals. New output fields: beats and downbeats (seconds). Existing
+fields keep their names and formats; key detection and energy are unchanged.
+
+Also removes the unused librosa beat_track pass and the now-unused headline
+selection, adds THIRD_PARTY_NOTICES.md with the Beat This! MIT notice and
+training-data caveat, installs CPU-only PyTorch in CI, and sharpens the test
+click fixture (its 50 ms, barely-decaying tone bursts are not percussive
+enough for the beat model).
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;
+
+* build: require torch&gt;=2.6 (CVE-2025-32434 weights_only bypass)
+
+torch 2.0-2.5 let torch.load(weights_only=True) be bypassed. No separate
+torchaudio floor is needed: every torchaudio release pins its matching
+torch exactly, so torch&gt;=2.6 already implies torchaudio&gt;=2.6.
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;
+
+---------
+
+Co-authored-by: Claude Opus 5.5 &lt;noreply@anthropic.com&gt; ([`7f0aac3`](https://github.com/sohailbhamani/audio-analyzer/commit/7f0aac3b2acb44f94a1a6ca953c79cd8afc0ab88))
+
+
 ## v0.3.1 (2026-10-20)
 
 ### Fix
