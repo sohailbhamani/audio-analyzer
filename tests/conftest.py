@@ -234,7 +234,8 @@ def add_click_track(audio: np.ndarray, bpm: float) -> np.ndarray:
     click_duration = 0.05
     click_freq = 1000
     click_t = np.linspace(0, click_duration, int(SAMPLE_RATE * click_duration), endpoint=False)
-    click_wave = 0.8 * np.sin(2 * np.pi * click_freq * click_t) * np.exp(-10 * click_t)
+    # Fast decay so each click is a sharp transient (a slow decay is a 50 ms tone burst, not a click).
+    click_wave = 0.8 * np.sin(2 * np.pi * click_freq * click_t) * np.exp(-150 * click_t)
     click_wave = click_wave.astype(np.float32)
 
     beats = np.arange(0, duration, beat_interval)

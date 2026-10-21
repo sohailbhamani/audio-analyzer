@@ -1,6 +1,8 @@
+import functools
 import json
 import logging
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -101,12 +103,54 @@ MAX_BPM = 200.0
 # Tempo relatives of the detected tempo that are scored as candidates.
 TEMPO_RELATIVES = (1.0, 2.0, 0.5, 1.5, 1 / 1.5)
 MAX_TEMPO_CANDIDATES = 4
-# A relative tempo must beat the detector's own estimate by this factor to replace it.
-TEMPO_OVERRIDE_MARGIN = 1.5
-# Below this, a tempo is usually a half-time reading of the true tempo, so its score is
-# discounted by LOW_TEMPO_MARGIN when choosing the headline (candidates are unaffected).
-LOW_TEMPO_BPM = 70.0
-LOW_TEMPO_MARGIN = 1.5
+
+# Beat This! "small" checkpoint (MIT), bundled with the package so it is never downloaded.
+BEAT_THIS_CHECKPOINT = Path(__file__).parent / "models" / "beat_this-small0.ckpt"
+# Inter-beat intervals within this fraction of the median interval count as inliers.
+BEAT_INLIER_TOLERANCE = 0.2
+# Least-squares refinement passes of the beat period.
+BEAT_PERIOD_REFINEMENTS = 3
+
+
+def tempo_from_beats(beats: Sequence[float] | np.ndarray) -> tuple[float, float]:
+    """Derive the tempo from beat times. Returns (bpm, confidence); (0.0, 0.0) for < 3 beats.
+
+    A plain median of the inter-beat intervals is biased by the tracker's 20 ms frame grid
+    (up to 4% at drum & bass tempos), so the period is estimated robustly instead: the mean
+    of the inlier intervals (within BEAT_INLIER_TOLERANCE of the median), refined by a
+    least-squares fit of beat time against beat index. The confidence is the share of
+    intervals that are inliers, i.e. how regular the beat grid is.
+    """
+    b = np.asarray(beats, dtype=float)
+    if len(b) < 3:
+        return 0.0, 0.0
+    intervals = np.diff(b)
+    median = float(np.median(intervals))
+    if median <= 0:
+        return 0.0, 0.0
+    inliers = np.abs(intervals - median) < BEAT_INLIER_TOLERANCE * median
+    period = float(intervals[inliers].mean()) if inliers.any() else median
+    for _ in range(BEAT_PERIOD_REFINEMENTS):
+        index = np.round((b - b[0]) / period)
+        period = float(np.polyfit(index, b, 1)[0])
+    return 60.0 / period, float(inliers.mean())
+
+
+@functools.cache
+def _beat_tracker():
+    """Load the bundled Beat This! small model once per process (CPU, no DBN post-processing)."""
+    from beat_this.inference import Audio2Beats
+
+    # beat_this treats a missing path as a checkpoint name and downloads it; never let it.
+    if not BEAT_THIS_CHECKPOINT.is_file():
+        raise FileNotFoundError(f"Bundled beat model missing: {BEAT_THIS_CHECKPOINT}")
+    return Audio2Beats(checkpoint_path=str(BEAT_THIS_CHECKPOINT), device="cpu", dbn=False)
+
+
+def detect_beats(y: np.ndarray, sr: int) -> tuple[np.ndarray, np.ndarray]:
+    """Return (beat_times, downbeat_times) in seconds for a mono signal."""
+    beats, downbeats = _beat_tracker()(y, sr)
+    return np.asarray(beats, dtype=float), np.asarray(downbeats, dtype=float)
 
 
 def _beat_grid_score(env: np.ndarray, tempo: float, fps: float) -> tuple[float, float]:
@@ -160,30 +204,6 @@ def tempo_candidates(y: np.ndarray, sr: int, detected_bpm: float) -> list[dict[s
     return scored[:MAX_TEMPO_CANDIDATES]
 
 
-def select_headline_bpm(folded_bpm: float, candidates: list[dict[str, float]]) -> float:
-    """Pick the headline BPM: the detector's estimate unless a candidate is clearly better.
-
-    Tempos below LOW_TEMPO_BPM need LOW_TEMPO_MARGIN times the evidence of the next
-    candidate at or above it, so a half-tempo cannot win on a near-tie.
-    """
-
-    def effective(c: dict[str, float]) -> float:
-        return c["score"] / LOW_TEMPO_MARGIN if c["bpm"] < LOW_TEMPO_BPM else c["score"]
-
-    final_bpm = float(round(folded_bpm))
-    if not candidates:
-        return final_bpm
-    detector_score = max(
-        (effective(c) for c in candidates if abs(c["bpm"] - folded_bpm) <= 0.03 * folded_bpm), default=0.0
-    )
-    best = max(candidates, key=effective)
-    # A sub-LOW_TEMPO_BPM detector estimate is already discounted; don't stack the override margin on it.
-    margin = 1.0 if folded_bpm < LOW_TEMPO_BPM else TEMPO_OVERRIDE_MARGIN
-    if effective(best) > detector_score * margin:
-        final_bpm = float(round(best["bpm"]))
-    return final_bpm
-
-
 @click.group()
 def cli():
     """Audio Analyzer CLI - Detect BPM, Key, Energy, and Vocals."""
@@ -222,49 +242,11 @@ def analyze_audio(audio_path: Path) -> dict:
     y = y.astype(np.float32)
 
     # 1. BPM Detection ----------------------------------------------------
-    # Librosa BPM (multi-segment for stability)
-    segment_length = min(30 * sr, len(y) // 3)
-    librosa_tempos = []
-
-    for i in range(3):
-        start = i * segment_length
-        end = start + segment_length
-        if end <= len(y):
-            segment = y[start:end]
-            # librosa's type hints can be tricky, cast return to float
-            tempo = librosa.beat.beat_track(y=segment, sr=sr)[0]
-            # librosa returns tempo as a 1-element array; numpy >= 2.5 refuses
-            # float() on anything but a 0-d array.
-            bpm = float(np.asarray(tempo).reshape(-1)[0])
-
-            # Fix octave errors (normalize to 80-160 - typical DJ tempo range)
-            if bpm > 0:
-                while bpm < 80:
-                    bpm = bpm * 2
-                while bpm > 160:
-                    bpm = bpm / 2
-            librosa_tempos.append(bpm)
-
-    _librosa_bpm = round(np.median(librosa_tempos)) if librosa_tempos else 120  # noqa: F841
-
-    # Essentia BPM (RhythmExtractor2013 - best for electronic)
-    rhythm_extractor = es.RhythmExtractor2013(method="multifeature")
-    essentia_bpm, _, beats_confidence, _, _ = rhythm_extractor(y)
-    essentia_bpm = float(essentia_bpm)
-
-    # Fold only into the plausible 60-200 range, then let beat-grid evidence over
-    # the tempo relatives decide whether a different octave/ratio fits better.
-    folded_bpm = essentia_bpm
-    if folded_bpm > 0:
-        while folded_bpm < MIN_BPM:
-            folded_bpm = folded_bpm * 2
-        while folded_bpm > MAX_BPM:
-            folded_bpm = folded_bpm / 2
-    bpm_candidates = tempo_candidates(y, sr, essentia_bpm)
-
-    # Prefer Essentia unless a relative tempo is clearly better supported
-    final_bpm = select_headline_bpm(folded_bpm, bpm_candidates)
-    bpm_confidence = min(1.0, float(beats_confidence) / 10.0)
+    # Beat This! tracks beats and downbeats; the tempo comes from the beat period.
+    beats, downbeats = detect_beats(y, sr)
+    detected_bpm, bpm_confidence = tempo_from_beats(beats)
+    final_bpm = float(round(detected_bpm))
+    bpm_candidates = tempo_candidates(y, sr, detected_bpm)
 
     # 2. Key Detection - Multi-profile Voting ------------------------------
     from collections import Counter
@@ -423,6 +405,8 @@ def analyze_audio(audio_path: Path) -> dict:
         "bpm_confidence": float(bpm_confidence),
         "key_confidence": float(key_confidence),
         "key_profiles": key_results,
+        "beats": [round(float(t), 3) for t in beats],
+        "downbeats": [round(float(t), 3) for t in downbeats],
     }
     return result
 
