@@ -2,8 +2,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from conftest import SAMPLE_RATE, add_click_track
 
-from audio_analyzer.main import analyze_audio, select_headline_bpm
+from audio_analyzer.main import analyze_audio, tempo_from_beats
 
 
 def run_analyzer(file_path: str) -> dict:
@@ -141,22 +142,57 @@ class TestBPMCandidates:
         assert _candidate_for(data, bpm) is not None, f"{bpm} not in {data['bpm_candidates']}"
 
 
-class TestHeadlineSelection:
-    """A sub-70 half-tempo must not win the headline on a near-tie."""
+class TestTempoFromBeats:
+    """Tempo derived from beat times by the robust beat-period estimate."""
 
-    def test_half_tempo_near_tie_loses(self):
-        candidates = [{"bpm": 63.0, "score": 0.30}, {"bpm": 126.0, "score": 0.26}]
-        assert select_headline_bpm(63.0, candidates) == 126.0
+    def test_exact_grid(self):
+        bpm, confidence = tempo_from_beats(np.arange(32) * 0.5 + 0.1)
+        assert bpm == pytest.approx(120.0, abs=1e-6)
+        assert confidence == 1.0
 
-    def test_half_tempo_needs_clearly_stronger_evidence(self):
-        candidates = [{"bpm": 63.0, "score": 0.60}, {"bpm": 126.0, "score": 0.30}]
-        assert select_headline_bpm(63.0, candidates) == 63.0
+    @pytest.mark.parametrize("bpm", [128.0, 140.0, 174.0])
+    def test_frame_quantised_beats_not_biased(self, bpm):
+        """Beats snapped to a 20 ms frame grid must not drag the tempo to a grid value."""
+        beats = np.round(np.arange(200) * 60.0 / bpm / 0.02) * 0.02
+        median_bpm = 60.0 / float(np.median(np.diff(beats)))
+        assert abs(median_bpm - bpm) > 1.0  # the plain median is visibly biased here
+        detected, _ = tempo_from_beats(beats)
+        assert detected == pytest.approx(bpm, abs=0.05)
 
-    def test_low_tempo_stays_in_candidates(self):
-        candidates = [{"bpm": 63.0, "score": 0.30}, {"bpm": 126.0, "score": 0.26}]
-        select_headline_bpm(63.0, candidates)
-        assert {c["bpm"] for c in candidates} == {63.0, 126.0}
+    def test_missed_and_spurious_beats(self):
+        beats = list(np.arange(64) * 60.0 / 128.0)
+        del beats[20]  # a missed beat leaves a double-length interval
+        beats.insert(40, beats[39] + 0.1)  # a spurious onset splits an interval
+        bpm, confidence = tempo_from_beats(beats)
+        assert bpm == pytest.approx(128.0, abs=0.05)
+        assert 0.9 < confidence < 1.0
 
-    def test_mid_tempo_detector_kept_without_margin(self):
-        candidates = [{"bpm": 128.0, "score": 0.30}, {"bpm": 85.3, "score": 0.35}]
-        assert select_headline_bpm(128.0, candidates) == 128.0
+    def test_jitter(self):
+        rng = np.random.default_rng(0)
+        beats = np.arange(256) * 60.0 / 174.0 + rng.normal(0, 0.005, 256)
+        bpm, _ = tempo_from_beats(beats)
+        assert bpm == pytest.approx(174.0, abs=0.1)
+
+    @pytest.mark.parametrize("beats", [[], [1.0], [1.0, 1.5]])
+    def test_too_few_beats(self, beats):
+        assert tempo_from_beats(beats) == (0.0, 0.0)
+
+
+class TestClickTrack:
+    """End to end on a bare click track: headline BPM, beats and downbeats."""
+
+    @pytest.mark.slow
+    @pytest.mark.parametrize("bpm", [120, 128, 174])
+    def test_click_track_tempo_and_beats(self, temp_audio_path, bpm):
+        import soundfile as sf
+
+        audio = add_click_track(np.zeros(SAMPLE_RATE * 20, dtype=np.float32), bpm)
+        sf.write(temp_audio_path, audio, SAMPLE_RATE)
+
+        data = run_analyzer(temp_audio_path)
+
+        assert data["bpm"] == bpm
+        beats, downbeats = data["beats"], data["downbeats"]
+        assert len(beats) >= 0.9 * 20 * bpm / 60
+        assert np.median(np.diff(beats)) == pytest.approx(60.0 / bpm, abs=0.021)  # one 20 ms frame
+        assert set(downbeats) <= set(beats)

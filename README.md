@@ -9,7 +9,10 @@ A GPL-licensed CLI tool for audio analysis using Essentia and Librosa. Detects B
 
 ## Features
 
-- **BPM Detection**: Dual-engine analysis using both Essentia and Librosa for accuracy
+- **BPM Detection**: [Beat This!](https://github.com/CPJKU/beat_this) (small model, bundled, CPU) tracks beats and downbeats; the BPM comes from a robust beat-period estimate
+  - `bpm_confidence` is the share of inter-beat intervals within 20% of the median interval
+  - `beats` and `downbeats` are listed in seconds
+  - `bpm_candidates` scores the tempo's x2, /2, x1.5 and /1.5 relatives on an onset envelope
 - **Key Detection**: Multi-profile key analysis with voting consensus
   - Uses three Essentia profiles: `edma`, `bgate`, and `temperley`
   - Voting logic: if 2+ profiles agree, use consensus; otherwise use highest confidence
@@ -54,7 +57,9 @@ audio-analyzer analyze path/to/song.mp3
   "energy": 75,
   "has_vocals": true,
   "bpm_confidence": 0.85,
-  "key_confidence": 0.72
+  "key_confidence": 0.72,
+  "beats": [0.16, 0.64, 1.12, 1.6],
+  "downbeats": [0.16, 2.08]
 }
 ```
 
@@ -77,6 +82,8 @@ mypy src/
 
 ## Dependencies
 
+- [Beat This!](https://github.com/CPJKU/beat_this) - Beat and downbeat tracking (MIT code and weights, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md))
+- [PyTorch](https://pytorch.org/) - Runs the beat model (CPU)
 - [Essentia](https://essentia.upf.edu/) - Audio analysis library
 - [Librosa](https://librosa.org/) - Music and audio analysis
 - [Click](https://click.palletsprojects.com/) - CLI framework
