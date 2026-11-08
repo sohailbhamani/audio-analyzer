@@ -88,7 +88,7 @@ def generate_chord(root_name: str, scale_type: str, duration: float, octave_shif
     fifth_freq = root_freq * (2 ** (7 / 12))  # Perfect fifth = 7 semitones
 
     # Generate each note with slight amplitude variations for realism
-    chord = (
+    chord: np.ndarray = (
         generate_tone(root_freq, duration, amp=0.35)
         + generate_tone(third_freq, duration, amp=0.30)
         + generate_tone(fifth_freq, duration, amp=0.30)
