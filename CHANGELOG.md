@@ -2,6 +2,31 @@
 
 
 
+## v0.5.0 (2026-11-13)
+
+### Breaking
+
+* build!: drop Python 3.10 support; bump filelock to 4.2.9 (#35)
+
+filelock 4.2.1+ fixes the open advisories against the locked 4.1.0, and
+filelock 4.2.x requires Python 3.11+, so the 3.10 fork of the lock had
+to stay on 4.1.0. Raise requires-python to &gt;=3.11, remove 3.10 from the
+classifiers, the CI matrix and the README badge, and move the ruff target
+to py311. Re-locking drops the 3.10-only package versions; no other
+versions change.
+
+BREAKING CHANGE: Python 3.10 is no longer supported. The minimum is now 3.11.
+
+
+Claude-Session: https://claude.ai/code/session_014tvRhinGeCw8iUuinnPeKd
+
+Co-authored-by: Claude Opus 5.5 &lt;noreply@anthropic.com&gt; ([`48077d1`](https://github.com/sohailbhamani/audio-analyzer/commit/48077d1094618cf409dfa0f979d71d2dae21d855))
+
+### Chore
+
+* chore: codex hygiene pass (deps, audit fixes, lint) (#34) ([`5eb603f`](https://github.com/sohailbhamani/audio-analyzer/commit/5eb603fef887e541d08b955710cd1f46717b1a0f))
+
+
 ## v0.4.0 (2026-10-21)
 
 ### Feature
